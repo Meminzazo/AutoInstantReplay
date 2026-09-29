@@ -1,17 +1,18 @@
 # 🎮 AutoInstantReplay
 
-Script de PowerShell que automatiza la activación y desactivación de **AMD Instant Replay** según la actividad del equipo. Permite mantener la función activa mientras se ejecuta un juego o durante una llamada de Discord, incluso cuando la grabación de escritorio está habilitada.
+Script de PowerShell que automatiza la activación y desactivación de **AMD Instant Replay** según la actividad del equipo. Permite activar AMD Instant Replay automáticamente durante los juegos o las llamadas de Discord. También incluye una excepción para desactivarlo mientras haya software de streaming abierto.
 
 ---
 
 ## ¿Cómo funciona?
 
-El script monitorea dos fuentes de actividad independientes:
+El script monitorea dos fuentes de actividad independientes y una condición de excepción:
 
 - **Juegos:** detecta el juego que está en primer plano mediante su ejecutable. Si cambias a otra ventana o minimizas el juego, Instant Replay permanece activo mientras el proceso del juego siga ejecutándose.
 - **Discord:** comprueba de forma independiente si Discord está en una llamada de voz o vídeo. No es necesario que haya un juego abierto para activar Instant Replay.
+- **Software de streaming:** comprueba si alguno de los procesos configurados está abierto. Si detecta uno, bloquea la activación de Instant Replay, aunque haya un juego o una llamada activos.
 
-La decisión final combina ambos estados: **si hay un juego activo o Discord está en llamada, Instant Replay se activa**. Solo se desactiva cuando ninguna de las dos condiciones se cumple.
+La decisión final es: **si hay software de streaming abierto, Instant Replay se desactiva; de lo contrario, se activa si hay un juego activo o Discord está en llamada**. Si no se cumple ninguna condición de activación, permanece desactivado.
 
 ```
 ┌──────────────────────────────────────────────────────┐
@@ -19,27 +20,31 @@ La decisión final combina ambos estados: **si hay un juego activo o Discord est
 │                                                      │
 │  ┌────────────────────┐  ┌───────────────────────┐  │
 │  │ Flujo 1: Juegos     │  │ Flujo 2: Discord      │  │
-│  │                    │  │                       │  │
-│  │ Juego detectado    │  │ ¿En llamada?          │  │
-│  │ ¿Sigue ejecutándose│  │                       │  │
-│  │ en segundo plano?  │  │ Sí / No               │  │
+│  │ Juego activo       │  │ ¿En llamada?          │  │
 │  └─────────┬──────────┘  └───────────┬───────────┘  │
 │            │                         │              │
 │            └────────────┬────────────┘              │
 │                         ▼                           │
 │             ¿Juego activo O llamada?                │
 │                         │                           │
-│               ┌─────────┴─────────┐                 │
-│               │                   │                 │
-│              Sí                  No                 │
-│               │                   │                 │
-│               ▼                   ▼                 │
-│       Activar Instant      Desactivar Instant       │
-│            Replay                 Replay             │
+│                         ▼                           │
+│           ¿Streaming abierto?                       │
+│                  │             │                    │
+│                 Sí             No                   │
+│                  │             │                    │
+│                  ▼             ▼                    │
+│          Desactivar       ¿Hay activador?           │
+│        Instant Replay       │       │               │
+│                            Sí      No               │
+│                             │       │               │
+│                             ▼       ▼               │
+│                          Activar  Desactivar        │
+│                        Instant    Instant           │
+│                         Replay    Replay            │
 └──────────────────────────────────────────────────────┘
 ```
 
-Los dos flujos se evalúan por separado. Por ejemplo, si no hay un juego activo y comienza una llamada de Discord, el flujo de Discord puede activar Instant Replay por sí mismo. Del mismo modo, cerrar la llamada no lo desactiva si todavía hay un juego ejecutándose.
+Los dos flujos de activación se evalúan por separado. Por ejemplo, si no hay un juego activo y comienza una llamada de Discord, el flujo de Discord puede activar Instant Replay por sí mismo. Del mismo modo, cerrar la llamada no lo desactiva si todavía hay un juego ejecutándose. La detección de software de streaming tiene prioridad sobre ambos activadores.
 
 ---
 
@@ -91,7 +96,7 @@ Después de modificar la configuración, reinicia el script para que los cambios
 
 | Archivo | Descripción |
 |---|---|
-| `AutoInstantReplay.ps1` | Script principal. Monitorea juegos y Discord, y controla Instant Replay. |
+| `AutoInstantReplay.ps1` | Script principal. Monitorea juegos, Discord y software de streaming, y controla Instant Replay. |
 | `Instalar-AutoInstantReplay.ps1` | Registra la tarea en el Programador de tareas de Windows y se elimina automáticamente. |
 | `games-config.json` | Configuración opcional para agregar juegos manualmente. Se genera al iniciar. |
 | `games-db.json` | Base de datos de juegos detectados. Se genera y actualiza al iniciar. |
@@ -156,7 +161,7 @@ Las opciones principales se encuentran al inicio de `AutoInstantReplay.ps1`:
 
 ```powershell
 $foregroundPollMilliseconds = 500
-$discordCheckMilliseconds   = 4000
+$discordCheckMilliseconds   = 5000
 $maxLogSizeBytes            = 1MB
 ```
 
@@ -165,8 +170,25 @@ $maxLogSizeBytes            = 1MB
 | `$foregroundPollMilliseconds` | Intervalo de revisión del proceso en primer plano, en milisegundos. |
 | `$discordCheckMilliseconds` | Intervalo de comprobación de la actividad de Discord, en milisegundos. |
 | `$maxLogSizeBytes` | Tamaño máximo del log antes de rotarlo. |
+| `$streamingProcesses` | Nombres de procesos que bloquean Instant Replay mientras estén abiertos. Se indican sin la extensión `.exe`. |
 
-El valor predeterminado revisa la ventana en primer plano cada 500 ms y comprueba Discord cada 1000 ms. El log se limita a 1 MB; al superar ese tamaño, el registro anterior se mueve a `instantreplay.log.old` y se reemplaza en la siguiente escritura.
+El valor predeterminado revisa la ventana en primer plano cada 500 ms. Cada 5000 ms comprueba Discord y si hay software de streaming abierto. El log se limita a 1 MB; al superar ese tamaño, el registro anterior se mueve a `instantreplay.log.old` y se reemplaza en la siguiente escritura.
+
+### Excepción de software de streaming
+
+La lista `$streamingProcesses`, ubicada al inicio de `AutoInstantReplay.ps1`, contiene los nombres de los procesos que bloquean Instant Replay:
+
+```powershell
+$streamingProcesses = @(
+    'obs64',
+    'obs32',
+    'Streamlabs Desktop',
+    'XSplit.Core',
+    'Twitch Studio'
+)
+```
+
+La detección se basa en que el proceso esté ejecutándose; no comprueba si el programa está transmitiendo, grabando o simplemente abierto. Mientras cualquiera de los procesos de la lista esté activo, Instant Replay permanece desactivado. Al cerrar el software, se reanuda la lógica normal de juegos y Discord. Para agregar o quitar programas, modifica esta lista y reinicia el script.
 
 ---
 
@@ -182,6 +204,8 @@ Ejemplo:
 [2026-09-27 13:45:47] Índice de ejecutables creado: 183 ejecutables
 [2026-09-27 13:45:48] JUEGO ACTIVO: [Steam] Nombre del juego
 [2026-09-27 13:45:48] Instant Replay ACTIVADO
+[2026-09-27 14:00:00] STREAMING DETECTADO: Instant Replay bloqueado
+[2026-09-27 14:00:00] Instant Replay DESACTIVADO
 [2026-09-27 14:10:12] DISCORD EN LLAMADA
 [2026-09-27 14:35:00] JUEGO INACTIVO
 [2026-09-27 14:35:01] DISCORD SIN LLAMADA
@@ -209,6 +233,7 @@ Después, elimina manualmente la carpeta donde guardaste los archivos. Si el scr
 
 - AutoInstantReplay es independiente de [AutoSuspend](https://github.com/Meminzazo/AutoSuspend).
 - La detección de llamadas de Discord se basa en la actividad de red del proceso y puede depender de cambios en el funcionamiento de Discord.
+- La detección de software de streaming comprueba únicamente si los procesos configurados están abiertos; no determina si están transmitiendo o grabando.
 - El script modifica el estado de Instant Replay mediante el registro de Windows. No cambia otras opciones de AMD Software.
 
 ---

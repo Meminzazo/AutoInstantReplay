@@ -9,6 +9,9 @@
 #
 # La activación ocurre si cualquiera de los dos está activo.
 #
+# EXCEPCIÓN: si hay software de streaming abierto (ver
+# $streamingProcesses), Instant Replay NUNCA se activa.
+#
 # La base de juegos NO escanea discos completos.
 # Solo utiliza:
 #   - Steam libraries
@@ -37,13 +40,23 @@ $gameDatabaseFile = Join-Path $scriptRoot 'games-db.json'
 $gameConfigFile   = Join-Path $scriptRoot 'games-config.json'
 
 $foregroundPollMilliseconds = 500
-$discordCheckMilliseconds   = 3000
+$discordCheckMilliseconds   = 5000
 $maxLogSizeBytes            = 1MB
 
 $amdRegistryPath       = 'HKCU:\Software\AMD\DVR'
 $amdInstantReplayValue = 'InstantReplayEnabled'
 
 $discordProcessName = 'Discord'
+
+# Si alguno de estos procesos está abierto, Instant Replay NO se activa
+# (aunque haya un juego o una llamada). Nombres de proceso sin ".exe".
+$streamingProcesses = @(
+    'obs64',
+    'obs32',
+    'Streamlabs Desktop',
+    'XSplit.Core',
+    'Twitch Studio'
+)
 
 # Rango de puertos UDP que Discord abre durante llamadas de voz/vídeo.
 $discordVoicePortMin = 50000
@@ -126,6 +139,9 @@ $script:discordInCall    = $false
 $script:lastDiscordCheck = [datetime]::MinValue
 
 $script:instantReplayState = $null
+
+# Software de streaming abierto (se actualiza junto con la revisión de Discord).
+$script:streamingActive = $false
 
 # ============================================================
 # LOG
@@ -1394,6 +1410,24 @@ function Set-InstantReplay {
 }
 
 # ============================================================
+# DETECCIÓN DE SOFTWARE DE STREAMING
+#
+# Detecta el programa abierto, no que esté transmitiendo.
+# ============================================================
+
+function Test-StreamingSoftwareRunning {
+
+    foreach ($name in $streamingProcesses) {
+
+        if (Get-Process -Name $name -ErrorAction SilentlyContinue) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+# ============================================================
 # ACTUALIZAR ESTADO
 # ============================================================
 
@@ -1404,11 +1438,12 @@ function Update-InstantReplayState {
 
     # --------------------------------------------------------
     # CUALQUIERA DE LOS DOS ACTIVADORES = ON
+    # ...salvo que haya software de streaming abierto.
     # --------------------------------------------------------
 
     $desiredState = (
-        $gameActive -or
-        $discordActive
+        ($gameActive -or $discordActive) -and
+        -not $script:streamingActive
     )
 
     if ($null -eq $script:instantReplayState) {
@@ -1595,6 +1630,21 @@ while ($true) {
                 Write-StateChange `
                     $script:lastGame `
                     $script:discordInCall
+            }
+
+            # Software de streaming (misma cadencia que Discord)
+            $newStreaming = Test-StreamingSoftwareRunning
+
+            if ($newStreaming -ne $script:streamingActive) {
+
+                $script:streamingActive = $newStreaming
+
+                if ($newStreaming) {
+                    Write-Log 'STREAMING DETECTADO: Instant Replay bloqueado'
+                }
+                else {
+                    Write-Log 'STREAMING CERRADO: Instant Replay desbloqueado'
+                }
             }
 
             # Verificar que el juego siga abierto

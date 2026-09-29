@@ -122,10 +122,8 @@ $script:lastGame                  = $null
 # está en background. Se actualiza al detectar un juego en foreground.
 $script:activeGamePid = 0
 
-$script:discordInCall = $false
-
+$script:discordInCall    = $false
 $script:lastDiscordCheck = [datetime]::MinValue
-
 
 $script:instantReplayState = $null
 
@@ -1212,10 +1210,6 @@ function Get-ProcessPathFromPid {
 
 function Get-ForegroundGame {
 
-    param(
-        [IntPtr]$WindowHandle = [IntPtr]::Zero
-    )
-
     $hwnd = [AutoInstantReplayWin32]::GetForegroundWindow()
 
     if ($hwnd -eq [IntPtr]::Zero) {
@@ -1302,18 +1296,15 @@ function Test-DiscordInCall {
 
         foreach ($line in $netstatOutput) {
 
-            $match = $script:discordVoiceSocketRegex.Match($line)
+            if ($line -match '^\s*UDP\s+\S+:(\d+)\s+\*:\*\s+(\d+)') {
 
-            if ($match.Success) {
-
-                $port   = [int]$match.Groups[1].Value
-                $procId = [int]$match.Groups[2].Value
+                $port   = [int]$Matches[1]
+                $procId = [int]$Matches[2]
 
                 if ($pids -contains $procId -and $port -ge 50000) {
                     return $true
                 }
             }
-
         }
     }
     catch {
@@ -1505,7 +1496,7 @@ while ($true) {
 
             $script:lastForegroundHwnd = $currentHwnd
 
-            $newGame = Get-ForegroundGame -WindowHandle $currentHwnd
+            $newGame = Get-ForegroundGame
 
             if ($null -ne $newGame) {
 
@@ -1555,7 +1546,8 @@ while ($true) {
         $now = Get-Date
 
         if (
-            ($now - $script:lastDiscordCheck).TotalMilliseconds -ge $discordCheckMilliseconds
+            ($now - $script:lastDiscordCheck).TotalMilliseconds `
+            -ge $discordCheckMilliseconds
         ) {
 
             $script:lastDiscordCheck = $now

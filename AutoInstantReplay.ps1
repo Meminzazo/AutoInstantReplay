@@ -124,14 +124,8 @@ $script:activeGamePid = 0
 
 $script:discordInCall = $false
 
-# [OPT] Monotonic clock avoids allocating DateTime objects on every 500 ms cycle.
 $script:lastDiscordCheck = [datetime]::MinValue
 
-# [OPT] Compile the Discord socket regex once instead of reparsing it for every netstat line.
-$script:discordVoiceSocketRegex = [regex]::new(
-    '^\\s*UDP\\s+\\S+:(\\d+)\\s+\\*:\\*\\s+(\\d+)',
-    [System.Text.RegularExpressions.RegexOptions]::Compiled
-)
 
 $script:instantReplayState = $null
 
@@ -1222,12 +1216,7 @@ function Get-ForegroundGame {
         [IntPtr]$WindowHandle = [IntPtr]::Zero
     )
 
-    # [OPT] Reuse the HWND already obtained by the main loop.
-    $hwnd = $WindowHandle
-
-    if ($hwnd -eq [IntPtr]::Zero) {
-        $hwnd = [AutoInstantReplayWin32]::GetForegroundWindow()
-    }
+    $hwnd = [AutoInstantReplayWin32]::GetForegroundWindow()
 
     if ($hwnd -eq [IntPtr]::Zero) {
         return $null

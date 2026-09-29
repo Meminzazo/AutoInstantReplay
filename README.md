@@ -156,7 +156,7 @@ Las opciones principales se encuentran al inicio de `AutoInstantReplay.ps1`:
 
 ```powershell
 $foregroundPollMilliseconds = 500
-$discordCheckMilliseconds   = 1000
+$discordCheckMilliseconds   = 4000
 $maxLogSizeBytes            = 1MB
 ```
 

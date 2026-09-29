@@ -113,7 +113,9 @@ La función Instant Replay debe estar disponible y configurada en AMD Software. 
 
 ## Instalación
 
-1. Descarga `AutoInstantReplay.ps1` e `Instalar-AutoInstantReplay.ps1` en la misma carpeta.
+**Ubicación recomendada:** crea la carpeta `Documentos\Scripts\AutoInstantReplay` y coloca allí los archivos del proyecto. Así tendrás los scripts organizados en un solo lugar y será más sencillo localizar los archivos de configuración y los registros. Puedes crearla desde el Explorador de archivos (File Explorer).
+
+1. Descarga `AutoInstantReplay.ps1` e `Instalar-AutoInstantReplay.ps1` y colócalos en la misma carpeta.
 2. Haz clic derecho en `Instalar-AutoInstantReplay.ps1` y selecciona **Ejecutar con PowerShell como administrador**.
 3. El instalador registra la tarea **AutoInstantReplay** en el Programador de tareas y se elimina automáticamente al finalizar.
 
@@ -128,7 +130,7 @@ La función Instant Replay debe estar disponible y configurada en AMD Software. 
    & "$env:USERPROFILE\Downloads\AutoInstantReplay\Instalar-AutoInstantReplay.ps1"
    ```
 
-   Ajusta la ruta si guardaste los archivos en otra carpeta. Para AutoSuspend, sustituye el nombre del instalador por `Instalar-AutoSuspend.ps1`.
+   Ajusta la ruta si guardaste los archivos en otra carpeta.
 4. Si aparece el aviso de Control de cuentas de usuario (UAC), confirma con **Sí (Yes)**.
 
 

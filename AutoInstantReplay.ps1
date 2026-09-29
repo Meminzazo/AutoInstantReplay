@@ -122,8 +122,16 @@ $script:lastGame                  = $null
 # está en background. Se actualiza al detectar un juego en foreground.
 $script:activeGamePid = 0
 
-$script:discordInCall    = $false
-$script:lastDiscordCheck = [datetime]::MinValue
+$script:discordInCall = $false
+
+# [OPT] Monotonic clock avoids allocating DateTime objects on every 500 ms cycle.
+$script:lastDiscordCheckTick = 0L
+
+# [OPT] Compile the Discord socket regex once instead of reparsing it for every netstat line.
+$script:discordVoiceSocketRegex = [regex]::new(
+    '^\\s*UDP\\s+\\S+:(\\d+)\\s+\\*:\\*\\s+(\\d+)',
+    [System.Text.RegularExpressions.RegexOptions]::Compiled
+)
 
 $script:instantReplayState = $null
 
@@ -1210,7 +1218,16 @@ function Get-ProcessPathFromPid {
 
 function Get-ForegroundGame {
 
-    $hwnd = [AutoInstantReplayWin32]::GetForegroundWindow()
+    param(
+        [IntPtr]$WindowHandle = [IntPtr]::Zero
+    )
+
+    # [OPT] Reuse the HWND already obtained by the main loop.
+    $hwnd = $WindowHandle
+
+    if ($hwnd -eq [IntPtr]::Zero) {
+        $hwnd = [AutoInstantReplayWin32]::GetForegroundWindow()
+    }
 
     if ($hwnd -eq [IntPtr]::Zero) {
         return $null
@@ -1296,15 +1313,18 @@ function Test-DiscordInCall {
 
         foreach ($line in $netstatOutput) {
 
-            if ($line -match '^\s*UDP\s+\S+:(\d+)\s+\*:\*\s+(\d+)') {
+            $match = $script:discordVoiceSocketRegex.Match($line)
 
-                $port   = [int]$Matches[1]
-                $procId = [int]$Matches[2]
+            if ($match.Success) {
+
+                $port   = [int]$match.Groups[1].Value
+                $procId = [int]$match.Groups[2].Value
 
                 if ($pids -contains $procId -and $port -ge 50000) {
                     return $true
                 }
             }
+
         }
     }
     catch {
@@ -1496,7 +1516,7 @@ while ($true) {
 
             $script:lastForegroundHwnd = $currentHwnd
 
-            $newGame = Get-ForegroundGame
+            $newGame = Get-ForegroundGame -WindowHandle $currentHwnd
 
             if ($null -ne $newGame) {
 
@@ -1543,14 +1563,14 @@ while ($true) {
         # Completamente independiente del juego.
         # ====================================================
 
-        $now = Get-Date
+        $nowTick = [Environment]::TickCount64
 
         if (
-            ($now - $script:lastDiscordCheck).TotalMilliseconds `
-            -ge $discordCheckMilliseconds
+            $script:lastDiscordCheckTick -eq 0 -or
+            ($nowTick - $script:lastDiscordCheckTick) -ge $discordCheckMilliseconds
         ) {
 
-            $script:lastDiscordCheck = $now
+            $script:lastDiscordCheckTick = $nowTick
 
             $newDiscordState = Test-DiscordInCall
 

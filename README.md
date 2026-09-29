@@ -117,6 +117,21 @@ La función Instant Replay debe estar disponible y configurada en AMD Software. 
 2. Haz clic derecho en `Instalar-AutoInstantReplay.ps1` y selecciona **Ejecutar con PowerShell como administrador**.
 3. El instalador registra la tarea **AutoInstantReplay** en el Programador de tareas y se elimina automáticamente al finalizar.
 
+
+**Si no aparece la opción «Ejecutar con PowerShell como administrador»:**
+
+1. Abre el menú **Inicio (Start)** y busca **PowerShell** o **Windows PowerShell**.
+2. Haz clic derecho en el resultado y selecciona **Ejecutar como administrador (Run as administrator)**. También puedes seleccionar la opción desde el panel derecho del menú Inicio.
+3. En la ventana de PowerShell, ejecuta el instalador usando su ruta completa. Por ejemplo:
+
+   ```powershell
+   & "$env:USERPROFILE\Downloads\AutoInstantReplay\Instalar-AutoInstantReplay.ps1"
+   ```
+
+   Ajusta la ruta si guardaste los archivos en otra carpeta. Para AutoSuspend, sustituye el nombre del instalador por `Instalar-AutoSuspend.ps1`.
+4. Si aparece el aviso de Control de cuentas de usuario (UAC), confirma con **Sí (Yes)**.
+
+
 La tarea se ejecuta:
 - Al iniciar sesión en Windows.
 - Al volver de suspensión.

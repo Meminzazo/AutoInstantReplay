@@ -125,7 +125,7 @@ $script:activeGamePid = 0
 $script:discordInCall = $false
 
 # [OPT] Monotonic clock avoids allocating DateTime objects on every 500 ms cycle.
-$script:lastDiscordCheckTick = 0L
+$script:lastDiscordCheck = [datetime]::MinValue
 
 # [OPT] Compile the Discord socket regex once instead of reparsing it for every netstat line.
 $script:discordVoiceSocketRegex = [regex]::new(
@@ -1563,14 +1563,13 @@ while ($true) {
         # Completamente independiente del juego.
         # ====================================================
 
-        $nowTick = [Environment]::TickCount64
+        $now = Get-Date
 
         if (
-            $script:lastDiscordCheckTick -eq 0 -or
-            ($nowTick - $script:lastDiscordCheckTick) -ge $discordCheckMilliseconds
+            ($now - $script:lastDiscordCheck).TotalMilliseconds -ge $discordCheckMilliseconds
         ) {
 
-            $script:lastDiscordCheckTick = $nowTick
+            $script:lastDiscordCheck = $now
 
             $newDiscordState = Test-DiscordInCall
 

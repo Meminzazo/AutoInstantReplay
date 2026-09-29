@@ -118,40 +118,55 @@ La función Instant Replay debe estar disponible y configurada en AMD Software. 
 
 ## Instalación
 
-**Ubicación recomendada:** guarda el proyecto en `Documentos\Scripts\AutoInstantReplay`. Si aún no existe, crea primero la carpeta `Documentos\Scripts` y dentro de ella `AutoInstantReplay`. Puedes hacerlo desde el Explorador de archivos (File Explorer).
+Hay dos formas de instalar el proyecto:
 
-1. Descarga `AutoInstantReplay.ps1` e `Instalar-AutoInstantReplay.ps1` desde el repositorio y coloca ambos archivos dentro de `Documentos\Scripts\AutoInstantReplay` (deben estar en la misma carpeta).
-2. Abre el menú **Inicio (Start)**, busca **PowerShell** o **Windows PowerShell** y selecciona **Ejecutar como administrador (Run as administrator)**.
-3. En la ventana de PowerShell, ejecuta el instalador con esta ruta:
+- **Instalación automática (recomendada):** ejecuta `Instalar-AutoInstantReplay.bat`. El archivo BAT solicita permisos de administrador, copia los archivos necesarios a la carpeta de Documentos, ejecuta el instalador de PowerShell, registra la tarea y la inicia inmediatamente.
+- **Instalación manual:** descarga los archivos y ejecuta directamente el instalador de PowerShell desde una consola elevada. Esta opción permite elegir la ubicación y controlar cada paso.
+
+### Opción 1: instalación automática con `Instalar-AutoInstantReplay.bat`
+
+1. Descarga el repositorio como ZIP desde GitHub (**Code → Download ZIP**) o descarga los archivos de instalación.
+2. Si descargaste un ZIP, extráelo primero. No ejecutes el BAT directamente dentro del archivo comprimido.
+3. Asegúrate de que estos tres archivos estén juntos en la misma carpeta:
+   - `Instalar-AutoInstantReplay.bat`
+   - `Instalar-AutoInstantReplay.ps1`
+   - `AutoInstantReplay.ps1`
+4. Haz doble clic en `Instalar-AutoInstantReplay.bat`.
+5. Si Windows muestra el aviso de Control de cuentas de usuario (**User Account Control / Control de cuentas de usuario**, UAC), acepta con **Sí (Yes)** para permitir la instalación. El BAT solicita elevación automáticamente; no es necesario abrir PowerShell como administrador.
+6. El instalador copia los dos archivos de PowerShell a:
+   
+   `Documentos\\Scripts\\AutoInstantReplay`
+
+   La ruta de Documentos se obtiene desde Windows, por lo que también funciona si la carpeta está redirigida a otra ubicación (por ejemplo, OneDrive).
+7. El instalador registra la tarea programada **AutoInstantReplay** y, si todo termina correctamente, el BAT comprueba que la tarea exista y la inicia de inmediato, sin esperar al siguiente inicio de sesión.
+8. Se genera en la carpeta de destino un archivo `Desinstalar-AutoInstantReplay.bat`. Puedes usarlo más adelante para quitar la tarea y, opcionalmente, los archivos del programa.
+9. Cuando la instalación termina correctamente, el BAT elimina los instaladores de PowerShell de la carpeta de origen y se elimina a sí mismo. Los archivos de la carpeta de destino permanecen.
+
+**Importante:** no elimines `Documentos\\Scripts\\AutoInstantReplay`; contiene el script que se ejecuta en segundo plano y los archivos de configuración o registro que correspondan. Si la instalación falla, el BAT muestra un error y conserva los archivos originales para que puedas volver a intentarlo. Si cancelas el aviso de administrador, la instalación no se realiza.
+
+### Opción 2: instalación manual con PowerShell
+
+Usa este método si prefieres instalar en una ruta distinta o no quieres utilizar el BAT.
+
+1. Descarga y extrae el repositorio, o descarga los archivos necesarios.
+2. Coloca `AutoInstantReplay.ps1` y `Instalar-AutoInstantReplay.ps1` juntos en la carpeta donde quieras mantener el programa. El instalador de PowerShell busca el script principal en su propia carpeta.
+3. Abre **Start / Inicio**, busca **PowerShell** o **Windows PowerShell**, haz clic derecho y selecciona **Run as administrator / Ejecutar como administrador**. Si no aparece esa opción en el menú contextual, selecciónala desde el panel derecho del menú Inicio.
+4. Ejecuta el instalador usando su ruta completa. Por ejemplo, si elegiste la ubicación recomendada:
 
    ```powershell
-   & "$env:USERPROFILE\Documents\Scripts\AutoInstantReplay\Instalar-AutoInstantReplay.ps1"
+   & "$env:USERPROFILE\\Documents\\Scripts\\AutoInstantReplay\\Instalar-AutoInstantReplay.ps1"
    ```
 
-   Si guardaste los archivos en otra ubicación, ajusta la ruta.
-4. Confirma el aviso de Control de cuentas de usuario (UAC) con **Sí (Yes)**, si aparece.
-5. El instalador registra la tarea **AutoInstantReplay** en el Programador de tareas y se elimina automáticamente al finalizar.
+   Si lo guardaste en otra ubicación, sustituye la ruta por la carpeta que elegiste.
+5. Confirma el aviso UAC si aparece. El instalador verifica que el script principal esté presente y que PowerShell se esté ejecutando como administrador.
+6. Al finalizar, se registra la tarea **AutoInstantReplay**, configurada para ejecutarse al iniciar sesión y al volver de suspensión. El instalador de PowerShell se elimina automáticamente.
 
+En la instalación manual, el BAT no se ejecuta, por lo que **no se crea automáticamente** el archivo `Desinstalar-AutoInstantReplay.bat`. Para iniciar la tarea sin cerrar sesión, ejecuta:
 
-**Si no aparece la opción «Ejecutar con PowerShell como administrador»:**
+```powershell
+Start-ScheduledTask -TaskName "AutoInstantReplay"
+```
 
-1. Abre el menú **Inicio (Start)** y busca **PowerShell** o **Windows PowerShell**.
-2. Haz clic derecho en el resultado y selecciona **Ejecutar como administrador (Run as administrator)**. También puedes seleccionar la opción desde el panel derecho del menú Inicio.
-3. En la ventana de PowerShell, ejecuta el instalador usando su ruta completa. Por ejemplo:
-
-   ```powershell
-   & "$env:USERPROFILE\Downloads\AutoInstantReplay\Instalar-AutoInstantReplay.ps1"
-   ```
-
-   Ajusta la ruta si guardaste los archivos en otra carpeta.
-4. Si aparece el aviso de Control de cuentas de usuario (UAC), confirma con **Sí (Yes)**.
-
-
-La tarea se ejecuta:
-- Al iniciar sesión en Windows.
-- Al volver de suspensión.
-
-El script se ejecuta en segundo plano y la ventana de PowerShell permanece oculta.
 
 ---
 

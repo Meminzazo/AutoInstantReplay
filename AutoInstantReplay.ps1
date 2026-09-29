@@ -37,7 +37,7 @@ $gameDatabaseFile = Join-Path $scriptRoot 'games-db.json'
 $gameConfigFile   = Join-Path $scriptRoot 'games-config.json'
 
 $foregroundPollMilliseconds = 500
-$discordCheckMilliseconds   = 1000
+$discordCheckMilliseconds   = 3000
 $maxLogSizeBytes            = 1MB
 
 $amdRegistryPath       = 'HKCU:\Software\AMD\DVR'
@@ -1294,6 +1294,10 @@ function Test-DiscordInCall {
 
         $netstatOutput = netstat -ano -p UDP 2>$null
 
+        if ($LASTEXITCODE -ne 0) {
+            Write-Log "ERROR netstat código $LASTEXITCODE"
+        }
+
         foreach ($line in $netstatOutput) {
 
             if ($line -match '^\s*UDP\s+\S+:(\d+)\s+\*:\*\s+(\d+)') {
@@ -1308,6 +1312,8 @@ function Test-DiscordInCall {
         }
     }
     catch {
+
+        Write-Log "ERROR en Test-DiscordInCall: $($_.Exception.Message)"
     }
 
     return $false
@@ -1448,6 +1454,34 @@ function Write-StateChange {
 }
 
 # ============================================================
+# COMPROBAR SI EL JUEGO ACTIVO SIGUE ABIERTO
+#
+# Cubre el caso en que el juego se cierra estando en background
+# (el foreground no cambia, así que el flujo 1 no lo detecta).
+# ============================================================
+
+function Update-GameProcessState {
+
+    if ($null -eq $script:lastGame -or $script:activeGamePid -eq 0) {
+        return
+    }
+
+    $alive = Get-Process `
+        -Id $script:activeGamePid `
+        -ErrorAction SilentlyContinue
+
+    if (-not $alive) {
+
+        $script:lastGame      = $null
+        $script:activeGamePid = 0
+
+        Write-StateChange `
+            $null `
+            $script:discordInCall
+    }
+}
+
+# ============================================================
 # INICIALIZACIÓN
 # ============================================================
 
@@ -1562,6 +1596,9 @@ while ($true) {
                     $script:lastGame `
                     $script:discordInCall
             }
+
+            # Verificar que el juego siga abierto
+            Update-GameProcessState
         }
 
         # ====================================================
